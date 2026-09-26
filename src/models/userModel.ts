@@ -1,4 +1,5 @@
-import pool from '../config/db';
+﻿import pool from '../config/db';
+import { RegisterInput } from '../types/auth.types';
 
 export const UserModel = {
     findByUsername: async (username: string) => {

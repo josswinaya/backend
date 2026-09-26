@@ -1,12 +1,28 @@
-import pool from '../config/db';
+﻿import pool from '../config/db';
+import { TodoRecord } from '../types/todo.types';
 
 export const TodoModel = {
-    getByUserId: async (userId: number) => {
-        const [rows] = await pool.query('SELECT * FROM todos WHERE user_id = ?', [userId]);
+    getByUserId: async (userId: number, limit?: number, offset?: number): Promise<TodoRecord[]> => {
+        if (limit !== undefined && offset !== undefined) {
+            const [rows]: any = await pool.query(
+                'SELECT * FROM todos WHERE user_id = ? LIMIT ? OFFSET ?',
+                [userId, limit, offset]
+            );
+            return rows;
+        }
+        const [rows]: any = await pool.query('SELECT * FROM todos WHERE user_id = ?', [userId]);
         return rows;
     },
 
-    getById: async (id: number, userId: number) => {
+    countByUserId: async (userId: number): Promise<number> => {
+        const [rows]: any = await pool.query(
+            'SELECT COUNT(*) as total FROM todos WHERE user_id = ?',
+            [userId]
+        );
+        return rows[0]?.total || 0;
+    },
+
+    getById: async (id: number, userId: number): Promise<TodoRecord | undefined> => {
         const [rows]: any = await pool.query(
             'SELECT * FROM todos WHERE id = ? AND user_id = ?',
             [id, userId]
@@ -14,7 +30,7 @@ export const TodoModel = {
         return rows[0]; // Kembalikan 1 data, atau undefined jika tidak ditemukan
     },
 
-    create: async (userId: number, task: string) => {
+    create: async (userId: number, task: string): Promise<number> => {
         const [result]: any = await pool.query(
             'INSERT INTO todos (user_id, task) VALUES (?, ?)',
             [userId, task]
@@ -23,21 +39,34 @@ export const TodoModel = {
     },
 
     // Update task atau status is_completed
-        update: async (id: number, task: string, isCompleted: boolean, userId: number) => {
-        const [result]: any = await pool.query(
-            'UPDATE todos SET task = ?, is_completed = ? WHERE id = ? AND user_id = ?',
-            [task, isCompleted, id, userId]
-        );
-        return result.affectedRows;
-        },
+    update: async (id: number, task: string | undefined, isCompleted: boolean | undefined, userId: number): Promise<number> => {
+        const updates: string[] = [];
+        const values: any[] = [];
 
-        // Hapus todo berdasarkan id dan userId
-        delete: async (id: number, userId: number) => {
+        if (task !== undefined) {
+            updates.push('task = ?');
+            values.push(task);
+        }
+        if (isCompleted !== undefined) {
+            updates.push('is_completed = ?');
+            values.push(isCompleted ? 1 : 0);
+        }
+
+        if (updates.length === 0) return 0;
+
+        values.push(id, userId);
+        const query = `UPDATE todos SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
+
+        const [result]: any = await pool.query(query, values);
+        return result.affectedRows;
+    },
+
+    // Hapus todo berdasarkan id dan userId
+    delete: async (id: number, userId: number): Promise<number> => {
         const [result]: any = await pool.query(
             'DELETE FROM todos WHERE id = ? AND user_id = ?',
             [id, userId]
         );
         return result.affectedRows;
     }
-    
 };

@@ -1,36 +1,42 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { UserModel } from '../models/userModel';
+import { sendSuccess, sendError } from '../utils/response';
+import { RegisterInput, LoginInput } from '../types/auth.types';
 
-export const register = async (req: Request, res: Response): Promise<void> => {
+export const register = async (req: Request<{}, {}, RegisterInput>, res: Response): Promise<void> => {
     const { username, email, password } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         await UserModel.create(username, email, hashedPassword);
-        res.status(201).json({ success: true, message: 'Registrasi berhasil!' });
+        sendSuccess(res, 201, 'Registrasi berhasil!');
     } catch (error: any) {
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(409).json({ success: false, message: 'Username atau Email sudah terdaftar!' });
+            sendError(res, 409, 'Username atau Email sudah terdaftar!');
             return;
         }
-        res.status(500).json({ success: false, message: 'Error server.' });
+        sendError(res, 500, 'Error server.');
     }
 };
 
-export const login = async (req: Request, res: Response): Promise<void> => {
+export const login = async (req: Request<{}, {}, LoginInput>, res: Response): Promise<void> => {
     const { username, password } = req.body;
     try {
         const user = await UserModel.findByUsername(username);
 
         if (!user || !(await bcrypt.compare(password, user.password))) {
-            res.status(401).json({ success: false, message: 'Username atau password salah!' });
+            sendError(res, 401, 'Username atau password salah!');
             return;
         }
 
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string, { expiresIn: '2h' });
-        res.status(200).json({ success: true, message: 'Login berhasil!', token });
+        const token = jwt.sign(
+            { id: user.id, username: user.username, email: user.email },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '2h' }
+        );
+        sendSuccess(res, 200, 'Login berhasil!', { token });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error server.' });
+        sendError(res, 500, 'Error server.');
     }
 };
