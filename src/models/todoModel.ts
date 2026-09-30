@@ -39,27 +39,29 @@ export const TodoModel = {
     },
 
     // Update task atau status is_completed
-    update: async (id: number, task: string | undefined, isCompleted: boolean | undefined, userId: number): Promise<number> => {
-        const updates: string[] = [];
-        const values: any[] = [];
+    update: async (id: number, task: string | undefined, isCompleted: boolean | undefined, userId: number) => {
+    const fields: string[] = [];
+    const values: any[] = [];
 
-        if (task !== undefined) {
-            updates.push('task = ?');
-            values.push(task);
-        }
-        if (isCompleted !== undefined) {
-            updates.push('is_completed = ?');
-            values.push(isCompleted ? 1 : 0);
-        }
+    if (task !== undefined) {
+        fields.push('task = ?');
+        values.push(task);
+    }
+    if (isCompleted !== undefined) {
+        fields.push('is_completed = ?');
+        values.push(isCompleted);
+    }
 
-        if (updates.length === 0) return 0;
+    if (fields.length === 0) return 0;
 
-        values.push(id, userId);
-        const query = `UPDATE todos SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
+    values.push(id, userId);
 
-        const [result]: any = await pool.query(query, values);
-        return result.affectedRows;
-    },
+    const [result]: any = await pool.query(
+        `UPDATE todos SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`,
+        values
+    );
+    return result.affectedRows;
+},
 
     // Hapus todo berdasarkan id dan userId
     delete: async (id: number, userId: number): Promise<number> => {
